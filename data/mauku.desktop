@@ -1,0 +1,12 @@
+[Desktop Entry]
+Encoding=UTF-8
+Version=1.0
+Type=Application
+Name=Mauku
+Exec=/usr/bin/mauku
+Icon=mauku
+X-Window-Icon=mauku
+X-Window-Icon-Dimmed=mauku
+X-Osso-Service=com.innologies.mauku
+X-HildonDesk-ShowInToolbar=true
+X-Osso-Type=application/x-executable

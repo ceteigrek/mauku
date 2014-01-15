@@ -1,0 +1,30 @@
+mauku (2.0-beta4update2) unstable; urgency=low
+
+  * Reuploaded to ensure dependency to the latest Microfeed package.
+
+ -- Henrik Hedberg <henrik.hedberg@innologies.fi>  Sat, 10 OCt 2009 15:40:00 +0300
+
+mauku (2.0-beta4) unstable; urgency=low
+
+  * The fourth beta release of Mauku 2.0 application.
+
+ -- Henrik Hedberg <henrik.hedberg@innologies.fi>  Tue, 6 OCt 2009 23:00:00 +0300
+
+mauku (2.0-beta3) unstable; urgency=low
+
+  * The third beta release of Mauku 2.0 application.
+
+ -- Henrik Hedberg <henrik.hedberg@innologies.fi>  Tue, 2 Sep 2009 08:00:00 +0300
+
+mauku (2.0-beta2) unstable; urgency=low
+
+  * The second beta release of Mauku 2.0 application.
+
+ -- Henrik Hedberg <henrik.hedberg@innologies.fi>  Sun, 23 Aug 2009 23:20:00 +0300
+
+mauku (2.0-beta1) unstable; urgency=low
+
+  * The first beta release of Mauku 2.0 application.
+
+ -- Henrik Hedberg <henrik.hedberg@innologies.fi>  Mon, 3 Aug 2009 22:00:00 +0300
+

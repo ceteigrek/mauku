@@ -1,0 +1,200 @@
+/* mauku-item.c */
+
+#include "mauku-item.h"
+#include "mauku-widget.h"
+#include <string.h>
+
+#define ICON_AREA_INDENT 50
+#define ICON_AREA_HEIGHT 50
+#define ICON_AREA_SPACING 15
+#define MARGIN_LEFT 10
+#define MARGIN_RIGHT 10
+#define MARGIN_TOP 10
+#define MARGIN_BOTTOM 8
+
+G_DEFINE_TYPE(MaukuItem, mauku_item, MAUKU_TYPE_WIDGET);
+
+enum {
+	PROP_0,
+};
+
+struct _MaukuItemPrivate {
+};
+
+static void mauku_item_finalize(GObject* object);
+static void mauku_item_dispose(GObject* object);
+static void mauku_item_size_request(GtkWidget* widget, GtkRequisition* requisition);
+static gboolean mauku_item_expose_event(GtkWidget* widget, GdkEventExpose* event);
+
+static void mauku_item_class_init(MaukuItemClass* klass) {
+	GObjectClass* gobject_class = G_OBJECT_CLASS(klass);
+	GtkWidgetClass* gtk_widget_class = GTK_WIDGET_CLASS(klass);
+
+	gobject_class->finalize = mauku_item_finalize;
+	gobject_class->dispose = mauku_item_dispose;
+
+	gtk_widget_class->realize = mauku_item_realize;
+	gtk_widget_class->unrealize = mauku_item_unrealize;
+	gtk_widget_class->map = mauku_item_map;
+	gtk_widget_class->unmap = mauku_item_unmap;
+	gtk_widget_class->size_request = mauku_item_size_request;
+	gtk_widget_class->size_allocate = mauku_item_size_allocate;
+	gtk_widget_class->expose_event = mauku_item_expose;
+
+	g_type_class_add_private (gobject_class, sizeof (MaukuItemPrivate));
+}
+
+static void mauku_item_init(MaukuItem* item) {
+	item->priv = G_TYPE_INSTANCE_GET_PRIVATE(item, MAUKU_TYPE_WIDGET, MaukuItemPrivate);
+
+	GTK_WIDGET_UNSET_FLAGS (event_box, GTK_NO_WINDOW);
+}
+
+static void mauku_item_finalize(GObject* object) {
+	MaukuItem* item;
+	
+	item = MAUKU_WIDGET(object);
+	g_free(item->priv->publisher);
+	g_free(item->priv->uri);
+	g_free(item->priv->uid);
+	g_free(item->priv->text);
+	g_free(item->priv->sender);
+	
+	G_OBJECT_CLASS (mauku_item_parent_class)->finalize(object);
+}
+
+static void mauku_item_dispose(GObject* object) {
+	MaukuItem* item;
+	
+	item = MAUKU_WIDGET(object);
+	if (item->priv->avatar) {
+		g_object_unref(item->priv->avatar);
+	}
+	if (item->priv->icon) {
+		g_object_unref(item->priv->icon);
+	}
+
+	if (item->priv->layout1) {
+		g_object_unref(item->priv->layout1);
+	}
+	if (item->priv->layout2) {
+		g_object_unref(item->priv->layout2);
+	}
+	if (item->priv->layout3) {
+		g_object_unref(item->priv->layout3);
+	}
+	if (item->priv->timeout_id) {
+		g_source_remove(item->priv->timeout_id);
+		item->priv->timeout_id = 0;
+	}
+	if (item->priv->buffer) {
+		g_object_unref(item->priv->buffer);
+		item->priv->buffer = NULL;
+	}
+	
+	G_OBJECT_CLASS (mauku_item_parent_class)->dispose(object);
+}
+
+static void mauku_item_size_request(GtkWidget* widget, GtkRequisition* requisition) {
+	MaukuItem* item;
+	
+	item = MAUKU_WIDGET(widget);
+	
+	if (requisition->width && requisition->width == widget->requisition.width) {
+		requisition->height = widget->requisition.height;
+	} else {
+		if (widget->allocation.width > 1) {
+			requisition->width = widget->allocation.width;
+		} else {
+			requisition->width = 800;
+		}
+		requisition->height = do_layout(MAUKU_WIDGET(widget), requisition->width);
+	}
+	if (requisition->height < ICON_AREA_HEIGHT + MARGIN_TOP + MARGIN_BOTTOM) {
+		requisition->height = ICON_AREA_HEIGHT + MARGIN_TOP + MARGIN_BOTTOM;
+	}
+	if (item->priv->buffer) {
+		g_object_unref(item->priv->buffer);
+		item->priv->buffer = NULL;
+	}
+}
+
+static gboolean mauku_item_expose_event(GtkWidget* widget, GdkEventExpose* event) {
+	MaukuItem* item;
+	MaukuItemClass* item_class;
+	cairo_t* cairo;
+	cairo_pattern_t* pattern;
+	GdkGC* gc;
+	GdkColor color;
+	PangoLayoutLine* layout_line;
+	PangoRectangle rectangle;
+	gint x;
+	gint y;
+	guint line;
+	
+	g_return_val_if_fail(MAUKU_IS_WIDGET(widget), FALSE);
+	g_return_val_if_fail(event != NULL, FALSE);
+
+	if (GTK_WIDGET_VISIBLE(widget) && GTK_WIDGET_MAPPED(widget)) {
+		item = MAUKU_WIDGET(widget);
+		item_class = MAUKU_WIDGET_GET_CLASS(item);
+		gc = gdk_gc_new(widget->window);
+		if (!item->priv->buffer) {
+			item->priv->buffer = gdk_pixmap_new(widget->window, widget->requisition.width, widget->requisition.height, -1);
+
+			if (item_class->background_middle) {
+				for (y = (item_class->background_top ? gdk_pixbuf_get_height(item_class->background_top) : 0);
+				     y < widget->requisition.height;
+				     y += gdk_pixbuf_get_height(item_class->background_middle)) {
+					gdk_draw_pixbuf(item->priv->buffer, NULL, item_class->background_middle, 0, 0, 0, y, widget->requisition.width, -1, GDK_RGB_DITHER_NONE, 0, 0);
+				}
+			}
+			if (item_class->background_top) {
+				gdk_draw_pixbuf(item->priv->buffer, NULL, item_class->background_top, 0, 0, 0, 0, widget->requisition.width, -1, GDK_RGB_DITHER_NONE, 0, 0);
+			}
+			if (item_class->background_avatar) {
+				gdk_draw_pixbuf(item->priv->buffer, NULL, item_class->background_avatar, 0, 0, 0, 0, -1, -1, GDK_RGB_DITHER_NONE, 0, 0);
+			}
+			if (item_class->background_bottom) {
+				gdk_draw_pixbuf(item->priv->buffer, NULL, item_class->background_bottom, 0, 0, 0, widget->requisition.height - gdk_pixbuf_get_height(item_class->background_bottom), widget->requisition.width, -1, GDK_RGB_DITHER_NONE, 0, 0);
+			}
+
+			if (item->priv->avatar) {
+				gdk_draw_pixbuf(item->priv->buffer, NULL, item->priv->avatar, 0, 0, MARGIN_LEFT, MARGIN_TOP, -1, -1, GDK_RGB_DITHER_NONE, 0, 0);
+			}
+			if (item->priv->comments > 0) {
+				gdk_draw_pixbuf(item->priv->buffer, NULL, item_class->icon, 0, 0, widget->requisition.width - gdk_pixbuf_get_width(item_class->icon) - MARGIN_RIGHT, MARGIN_TOP, -1, -1, GDK_RGB_DITHER_NONE, 0, 0);
+			}
+
+			if (!item->priv->layout1) {
+				do_layout(item, widget->requisition.width);
+			}
+			color.red = color.green = color.blue = 0x0000;
+			if (item->priv->layout1) {
+				x =  MARGIN_LEFT + ICON_AREA_INDENT;
+				if (item->priv->layout1_lines) {
+					y = 0;
+					for (line = 0; line < item->priv->layout1_lines; line++) {
+						if ((layout_line = pango_layout_get_line_readonly(item->priv->layout1, line))) {
+							pango_layout_line_get_pixel_extents(layout_line, NULL, &rectangle);
+							gdk_draw_layout_line_with_colors(item->priv->buffer, gc, x - rectangle.x, MARGIN_TOP + y - rectangle.y, layout_line, &color, NULL);
+							y += rectangle.height;
+						}
+					}
+					if (item->priv->layout2) {
+						pango_layout_get_pixel_extents(item->priv->layout2, NULL, &rectangle);
+						gdk_draw_layout_with_colors(item->priv->buffer, gc, MARGIN_LEFT - rectangle.x, MARGIN_TOP + y - rectangle.y, item->priv->layout2, &color, NULL);
+					}
+				} else {
+					pango_layout_get_pixel_extents(item->priv->layout1, NULL, &rectangle);
+					gdk_draw_layout_with_colors(item->priv->buffer, gc, x - rectangle.x, MARGIN_TOP - rectangle.y, item->priv->layout1, &color, NULL);
+				}
+				gdk_draw_layout_with_colors(item->priv->buffer, gc, MARGIN_LEFT + item->priv->layout3_x, MARGIN_TOP + item->priv->layout3_y, item->priv->layout3, &color, NULL);
+			}
+		}
+		gdk_draw_drawable(widget->window, gc, item->priv->buffer, 0, 0, widget->allocation.x, widget->allocation.y, -1, -1);
+		g_object_unref(gc);
+	}
+
+	return FALSE;
+}

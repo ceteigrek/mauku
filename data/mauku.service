@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=com.innologies.mauku
+Exec=/usr/bin/mauku
